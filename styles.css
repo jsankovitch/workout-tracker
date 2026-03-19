@@ -1,0 +1,799 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1c1c1e;
+  --surface2: #2c2c2e;
+  --border: #3a3a3c;
+  --text: #f2f2f7;
+  --text2: #aeaeb2;
+  --text3: #636366;
+  --accent: #0a84ff;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ── Screens ── */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top));
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 17px;
+  cursor: pointer;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.btn-icon.danger { color: var(--text2); }
+
+/* ── Scrollable content ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.content.timer-active {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+/* ── Progress bar ── */
+.progress-bar {
+  height: 3px;
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--success);
+  transition: width 0.3s;
+}
+
+/* ── Home ── */
+.home-header {
+  padding: 20px 20px 12px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+
+.home-title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.workout-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.workout-btn {
+  width: 100%;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workout-btn:active { opacity: 0.75; }
+
+.workout-btn-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.workout-btn-day {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 400;
+}
+
+/* ── Sessions list ── */
+.sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.btn-export {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sessions-empty {
+  font-size: 14px;
+  color: var(--text3);
+  padding: 8px 0;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.session-info { flex: 1; }
+
+.session-date {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.session-workout {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.btn-delete-session {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+/* ── Exit modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  z-index: 300;
+}
+
+.modal-sheet {
+  width: 100%;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.modal-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: white;
+}
+
+.modal-btn--danger {
+  background: var(--surface2);
+  color: var(--danger);
+}
+
+.modal-btn--secondary {
+  background: var(--surface2);
+  color: var(--text2);
+  font-weight: 400;
+}
+
+/* ── Pre-session ── */
+.settings-card {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-label {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.settings-sub {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.rest-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.rest-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  padding: 8px 10px;
+  width: 72px;
+  text-align: center;
+}
+
+.rest-input:focus { outline: none; border-color: var(--accent); }
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.preview-name { font-size: 15px; font-weight: 500; }
+.preview-target { font-size: 13px; color: var(--text2); }
+
+.preview-item--editable {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.preview-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.preview-input-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.preview-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  padding: 7px 10px;
+  width: 64px;
+  text-align: center;
+}
+
+.preview-input:focus { outline: none; border-color: var(--accent); }
+
+.preview-times {
+  font-size: 16px;
+  color: var(--text3);
+  margin-top: 14px;
+}
+
+.preview-rec {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 14px;
+  white-space: nowrap;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  width: 100%;
+  padding: 17px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:active { opacity: 0.8; }
+
+.btn-secondary {
+  padding: 14px 24px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* ── Exercise cards ── */
+.exercise-card {
+  background: var(--surface);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.exercise-card.is-completed { border-color: var(--success); }
+.exercise-card.is-skipped { opacity: 0.45; }
+
+.exercise-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.status-dot.in-progress { background: var(--accent); }
+.status-dot.completed   { background: var(--success); }
+.status-dot.skipped     { background: var(--danger); }
+
+.exercise-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.exercise-count {
+  font-size: 13px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.chevron {
+  color: var(--text3);
+  font-size: 12px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.exercise-card.is-expanded .chevron { transform: rotate(180deg); }
+
+/* ── Exercise detail ── */
+.exercise-detail {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 16px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.btn-video {
+  flex: 1;
+  padding: 10px;
+  background: var(--surface2);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-skip {
+  padding: 10px 14px;
+  background: var(--surface2);
+  color: var(--danger);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-unskip {
+  padding: 10px 14px;
+  background: var(--surface2);
+  color: var(--success);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Set rows ── */
+.sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-row {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 11px 12px;
+  border-left: 3px solid transparent;
+}
+
+.set-row.is-logged { border-left-color: var(--success); }
+
+.set-number {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+
+.set-inputs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.input-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.set-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  padding: 9px 8px;
+  width: 100%;
+  text-align: center;
+}
+
+.set-input.is-text {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.set-input:focus { outline: none; border-color: var(--accent); }
+
+.set-input[readonly] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+}
+
+.btn-done {
+  height: 48px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.btn-done.is-logged {
+  background: var(--surface);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.btn-done:disabled {
+  background: var(--border);
+  color: var(--text3);
+}
+
+.last-time {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 7px;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: var(--text3);
+  text-align: center;
+  margin-top: 4px;
+  min-height: 14px;
+}
+
+/* ── Exercise timer (in-set) ── */
+.ex-timer-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.ex-timer-value {
+  font-size: 48px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--warning);
+  flex: 1;
+}
+
+.btn-timer-stop {
+  padding: 10px 18px;
+  background: var(--surface);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn-start-ex {
+  height: 48px;
+  padding: 0 16px;
+  background: var(--success);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+
+/* ── Session detail ── */
+.detail-date {
+  font-size: 15px;
+  color: var(--text2);
+  margin-bottom: 20px;
+}
+
+.detail-exercise {
+  margin-bottom: 20px;
+}
+
+.detail-ex-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.detail-ex-empty {
+  font-size: 14px;
+  color: var(--text3);
+  padding-left: 4px;
+}
+
+.detail-set-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-set-row:last-child {
+  border-bottom: none;
+}
+
+.detail-set-num {
+  font-size: 12px;
+  color: var(--text3);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.detail-set-values {
+  font-size: 15px;
+  color: var(--text);
+}
+
+/* ── Session item tappable ── */
+.session-info {
+  cursor: pointer;
+  flex: 1;
+}
+
+.session-info:active {
+  opacity: 0.7;
+}
+
+.btn-add-set {
+  width: 100%;
+  padding: 11px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+/* ── Rest timer bar ── */
+#timer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 20px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 200;
+}
+
+.timer-label {
+  font-size: 13px;
+  color: var(--text2);
+  flex: 1;
+}
+
+.timer-value {
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--warning);
+}
+
+.timer-value.is-done { color: var(--success); }
+
+.btn-timer-skip {
+  padding: 8px 14px;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Finish ── */
+.finish-btn-row {
+  margin-top: 24px;
+}
+
+/* ── Complete screen ── */
+.complete-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+  height: 100%;
+}
+
+.complete-icon { font-size: 64px; }
+.complete-title { font-size: 26px; font-weight: 700; }
+.complete-sub { font-size: 15px; color: var(--text2); }

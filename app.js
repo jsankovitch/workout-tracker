@@ -13,7 +13,7 @@ const state = {
   exitModal: null,           // null | 'main' | 'discard'
   detailSession: null,
   editing: null,             // { exerciseId, setNumber } — set being re-edited
-  editingComment: null,      // exerciseId whose comment textarea is open
+  editingComment: null,      // exerciseId whose comment sheet is open
   editingPriorSession: false,
   uploadSheet: {
     open: false,
@@ -35,6 +35,7 @@ const state = {
   // Exercise timer (in-set countdown for timed exercises)
   exTimer: {
     active: false,
+    paused: false,
     exerciseId: null,
     setNumber: null,
     remaining: 0,
@@ -122,6 +123,25 @@ function updateTimerBar() {
 }
 
 // ── Exercise timer (in-set countdown) ─────────────────────────────────────
+function tickExTimer() {
+  const elapsed = Math.floor((Date.now() - state.exTimer.startTime) / 1000);
+  state.exTimer.remaining = Math.max(0, state.exTimer.total - elapsed);
+  if (state.exTimer.remaining === 0) {
+    clearInterval(state.exTimer.interval);
+    state.exTimer.interval = null;
+    beep(660);
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+    autoLogTimedSet();
+  } else {
+    const el = document.getElementById(`ex-timer-val-${state.exTimer.exerciseId}-${state.exTimer.setNumber}`);
+    if (el) {
+      const m = Math.floor(state.exTimer.remaining / 60);
+      const s = String(state.exTimer.remaining % 60).padStart(2, '0');
+      el.textContent = `${m}:${s}`;
+    }
+  }
+}
+
 function beginExerciseTimer(exerciseId, setNumber, button) {
   ensureAudio();
   const row = button.closest('.set-row');
@@ -137,36 +157,33 @@ function beginExerciseTimer(exerciseId, setNumber, button) {
   data.time = seconds;
 
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
-  const startTime = Date.now();
   Object.assign(state.exTimer, {
-    active: true, exerciseId, setNumber,
-    remaining: seconds, total: seconds, startTime, data,
+    active: true, paused: false, exerciseId, setNumber,
+    remaining: seconds, total: seconds, startTime: Date.now(), data,
   });
   render();
+  state.exTimer.interval = setInterval(tickExTimer, 1000);
+}
 
-  state.exTimer.interval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    state.exTimer.remaining = Math.max(0, seconds - elapsed);
-    if (state.exTimer.remaining === 0) {
-      clearInterval(state.exTimer.interval);
-      state.exTimer.interval = null;
-      beep(660);
-      if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
-      autoLogTimedSet();
-    } else {
-      const el = document.getElementById(`ex-timer-val-${exerciseId}-${setNumber}`);
-      if (el) {
-        const m = Math.floor(state.exTimer.remaining / 60);
-        const s = String(state.exTimer.remaining % 60).padStart(2, '0');
-        el.textContent = `${m}:${s}`;
-      }
-    }
-  }, 1000);
+function pauseExerciseTimer() {
+  clearInterval(state.exTimer.interval);
+  state.exTimer.interval = null;
+  state.exTimer.paused = true;
+  render();
+}
+
+function resumeExerciseTimer() {
+  state.exTimer.startTime = Date.now();
+  state.exTimer.total = state.exTimer.remaining;
+  state.exTimer.paused = false;
+  state.exTimer.interval = setInterval(tickExTimer, 1000);
+  render();
 }
 
 function autoLogTimedSet() {
   const { exerciseId, setNumber, data } = state.exTimer;
   state.exTimer.active = false;
+  state.exTimer.paused = false;
   state.session = Store.logSet(state.session.id, exerciseId, data);
   if (!state.editingPriorSession) {
     startTimer(state.restDuration, `Rest — set ${setNumber} done`);
@@ -177,6 +194,7 @@ function autoLogTimedSet() {
 function stopExerciseTimer() {
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
   state.exTimer.active = false;
+  state.exTimer.paused = false;
   render();
 }
 
@@ -258,7 +276,7 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
       <span class="input-label">Weight (lb)</span>
       <input type="number" inputmode="decimal" class="set-input" data-field="weight"
         placeholder="0" value="${v.weight ?? ''}" ${ro}>
-      <span class="input-hint">${lastWeight}</span>
+      <span class="input-hint">Last ${lastWeight}</span>
     </div>`;
   }
 
@@ -268,7 +286,7 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
       <span class="input-label">Reps</span>
       <input type="number" inputmode="numeric" class="set-input" data-field="reps"
         placeholder="0" value="${v.reps ?? (targetReps != null ? targetReps : '')}" ${ro}>
-      <span class="input-hint">target ${targetReps ?? '—'} · last ${lastReps}</span>
+      <span class="input-hint">Last ${lastReps}</span>
     </div>`;
   }
 
@@ -278,7 +296,7 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
       <span class="input-label">Time (s)</span>
       <input type="number" inputmode="numeric" class="set-input" data-field="time"
         placeholder="${targetTime || 0}" value="${v.time ?? (targetTime || '')}" ${ro}>
-      <span class="input-hint">target ${targetTime ?? '—'}s · last ${lastTime}</span>
+      <span class="input-hint">Last ${lastTime}</span>
     </div>`;
   }
 
@@ -289,13 +307,13 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
       <span class="input-label">${exercise.bandLabel || 'Band'}</span>
       <input type="text" class="set-input is-text" data-field="band"
         placeholder="color" value="${v.band ?? ''}" ${ro}>
-      <span class="input-hint">last ${lastBand}</span>
+      <span class="input-hint">Last ${lastBand}</span>
     </div>
     <div class="input-group">
       <span class="input-label">Reps</span>
       <input type="number" inputmode="numeric" class="set-input" data-field="reps"
         placeholder="0" value="${v.reps ?? (targetReps != null ? targetReps : '')}" ${ro}>
-      <span class="input-hint">target ${targetReps ?? '—'} · last ${lastReps}</span>
+      <span class="input-hint">Last ${lastReps}</span>
     </div>`;
   }
 
@@ -458,16 +476,24 @@ function renderExerciseCard(exercise) {
       const isEditing = state.editing?.exerciseId === exercise.id && state.editing?.setNumber === i;
       const isActiveTimer = state.exTimer.active && state.exTimer.exerciseId === exercise.id && state.exTimer.setNumber === i;
       const isExtra = i > targetSets;
-      const showDelete = (isLogged || isExtra) && !isActiveTimer;
+      const isDeletable = (isLogged || isExtra) && !isActiveTimer;
 
       if (isActiveTimer) {
         const m = Math.floor(state.exTimer.remaining / 60);
         const s = String(state.exTimer.remaining % 60).padStart(2, '0');
+        const isPaused = state.exTimer.paused;
         setsHtml += `<div class="set-row" id="setrow-${exercise.id}-${i}">
-          <div class="set-number">Set ${i} — in progress</div>
-          <div class="ex-timer-display">
-            <span class="ex-timer-value" id="ex-timer-val-${exercise.id}-${i}">${m}:${s}</span>
-            <button class="btn-timer-stop" onclick="stopExerciseTimer()">Stop</button>
+          <div class="set-row-inner">
+            <div class="set-number">Set ${i} — ${isPaused ? 'paused' : 'in progress'}</div>
+            <div class="ex-timer-display">
+              <span class="ex-timer-value${isPaused ? ' is-paused' : ''}" id="ex-timer-val-${exercise.id}-${i}">${m}:${s}</span>
+              <div class="ex-timer-btns">
+                ${isPaused
+                  ? `<button class="btn-timer-pause" onclick="resumeExerciseTimer()">Resume</button>`
+                  : `<button class="btn-timer-pause" onclick="pauseExerciseTimer()">Pause</button>`}
+                <button class="btn-timer-stop" onclick="stopExerciseTimer()">Stop</button>
+              </div>
+            </div>
           </div>
         </div>`;
       } else {
@@ -482,32 +508,17 @@ function renderExerciseCard(exercise) {
           actionBtn = `<button class="btn-done" onclick="logSet('${exercise.id}', ${i}, this)">Done</button>`;
         }
 
-        setsHtml += `<div class="set-row ${isLogged && !isEditing ? 'is-logged' : ''}" id="setrow-${exercise.id}-${i}">
-          <div class="set-row-header">
+        setsHtml += `<div class="set-row ${isLogged && !isEditing ? 'is-logged' : ''}" id="setrow-${exercise.id}-${i}"${isDeletable ? ` data-deletable="true" data-ex="${exercise.id}" data-set="${i}"` : ''}>
+          <div class="set-row-inner">
             <div class="set-number">Set ${i}</div>
-            ${showDelete ? `<button class="btn-delete-set" onclick="deleteSet('${exercise.id}', ${i})">×</button>` : ''}
+            <div class="set-inputs">
+              ${renderSetInputs(exercise, ls, prevSet, isEditing)}
+              ${actionBtn}
+            </div>
           </div>
-          <div class="set-inputs">
-            ${renderSetInputs(exercise, ls, prevSet, isEditing)}
-            ${actionBtn}
-          </div>
+          ${isDeletable ? `<button class="btn-swipe-delete" onclick="deleteSet('${exercise.id}', ${i})">Delete</button>` : ''}
         </div>`;
       }
-    }
-
-    // Comment section
-    let commentHtml = '';
-    if (state.editingComment === exercise.id) {
-      commentHtml = `<div class="comment-edit">
-        <textarea class="comment-input" id="comment-input-${exercise.id}" rows="3"
-          placeholder="Add a note about this exercise...">${existingComment}</textarea>
-        <div class="comment-edit-btns">
-          <button onclick="saveComment('${exercise.id}')">Save</button>
-          <button onclick="cancelComment()">Cancel</button>
-        </div>
-      </div>`;
-    } else if (existingComment) {
-      commentHtml = `<div class="comment-display">${existingComment}</div>`;
     }
 
     detail = `<div class="exercise-detail">
@@ -521,10 +532,10 @@ function renderExerciseCard(exercise) {
       <div class="sets-list">
         ${setsHtml}
       </div>
-      ${commentHtml}
-      ${!isSkipped ? `<div class="set-actions-row">
+      ${existingComment ? `<div class="comment-display">${existingComment}</div>` : ''}
+      ${!isSkipped ? `<div class="set-actions-col">
         <button class="btn-add-set" onclick="addSet('${exercise.id}')">Add Set</button>
-        <button class="btn-add-comment" onclick="startComment('${exercise.id}')">${existingComment ? 'Edit Comment' : 'Add Comment'}</button>
+        <button class="btn-add-comment" onclick="startComment('${exercise.id}')">${existingComment ? 'View/Change Comment' : 'Add Comment'}</button>
       </div>` : ''}
     </div>`;
   }
@@ -615,13 +626,27 @@ function renderExitModal() {
       </div>
     </div>`;
   }
-  // 'main'
   return `<div class="modal-overlay" onclick="closeExitModal()">
     <div class="modal-sheet" onclick="event.stopPropagation()">
       <div class="modal-title">End workout?</div>
       <button class="modal-btn" onclick="saveAndExit()">Save &amp; Exit</button>
       <button class="modal-btn modal-btn--danger" onclick="confirmDiscard()">Discard Workout</button>
       <button class="modal-btn modal-btn--secondary" onclick="closeExitModal()">Keep Going</button>
+    </div>
+  </div>`;
+}
+
+function renderCommentSheet() {
+  const exerciseId = state.editingComment;
+  const exercise = state.workout?.exercises.find(e => e.id === exerciseId);
+  const existingComment = state.session?.comments?.[exerciseId] || '';
+  return `<div class="modal-overlay" onclick="cancelComment()">
+    <div class="modal-sheet comment-sheet" onclick="event.stopPropagation()">
+      <div class="modal-title">${exercise?.name || 'Comment'}</div>
+      <textarea class="comment-input" id="comment-sheet-input" rows="4"
+        placeholder="Add a note about this exercise...">${existingComment}</textarea>
+      <button class="modal-btn" onclick="saveComment()">Save</button>
+      <button class="modal-btn modal-btn--secondary" onclick="cancelComment()">Cancel</button>
     </div>
   </div>`;
 }
@@ -689,8 +714,87 @@ function render() {
     case 'session-detail': app.innerHTML = renderSessionDetail(); break;
   }
   if (state.exitModal) app.insertAdjacentHTML('beforeend', renderExitModal());
+  if (state.editingComment) {
+    app.insertAdjacentHTML('beforeend', renderCommentSheet());
+    requestAnimationFrame(() => document.getElementById('comment-sheet-input')?.focus());
+  }
   if (state.uploadSheet.open) app.insertAdjacentHTML('beforeend', renderUploadSheet());
   if (state.timer.active) updateTimerBar();
+  attachSwipeListeners();
+}
+
+// ── Swipe to delete ───────────────────────────────────────────────────────────
+let swipeDocListenerAdded = false;
+
+function closeAllSwipes() {
+  document.querySelectorAll('.set-row[data-swipe-open="true"]').forEach(row => {
+    const inner = row.querySelector('.set-row-inner');
+    if (inner) {
+      inner.style.transition = 'transform 0.2s ease';
+      inner.style.transform = 'translateX(0)';
+    }
+    delete row.dataset.swipeOpen;
+  });
+}
+
+function attachSwipeListeners() {
+  if (!swipeDocListenerAdded) {
+    document.addEventListener('touchstart', e => {
+      if (!e.target.closest('.set-row')) closeAllSwipes();
+    }, { passive: true });
+    swipeDocListenerAdded = true;
+  }
+
+  document.querySelectorAll('.set-row[data-deletable="true"]').forEach(row => {
+    let startX, startY, didMove = false;
+    const inner = row.querySelector('.set-row-inner');
+    if (!inner) return;
+
+    row.addEventListener('touchstart', e => {
+      if (e.target.closest('.btn-swipe-delete')) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      didMove = false;
+    }, { passive: true });
+
+    row.addEventListener('touchmove', e => {
+      if (startX === undefined) return;
+      const dx = startX - e.touches[0].clientX;
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dy > Math.abs(dx) && !didMove) return; // vertical scroll
+      didMove = true;
+      const base = row.dataset.swipeOpen === 'true' ? 80 : 0;
+      const tx = Math.max(0, Math.min(80, base + dx));
+      inner.style.transition = 'none';
+      inner.style.transform = `translateX(-${tx}px)`;
+    }, { passive: true });
+
+    row.addEventListener('touchend', e => {
+      if (startX === undefined) return;
+      const dx = startX - e.changedTouches[0].clientX;
+      inner.style.transition = 'transform 0.2s ease';
+      if (row.dataset.swipeOpen === 'true' && !didMove) {
+        // tap on open row — close it
+        inner.style.transform = 'translateX(0)';
+        delete row.dataset.swipeOpen;
+      } else if (dx > 40) {
+        inner.style.transform = 'translateX(-80px)';
+        row.dataset.swipeOpen = 'true';
+        // close other open rows
+        document.querySelectorAll('.set-row[data-swipe-open="true"]').forEach(other => {
+          if (other !== row) {
+            const otherInner = other.querySelector('.set-row-inner');
+            if (otherInner) { otherInner.style.transition = 'transform 0.2s ease'; otherInner.style.transform = 'translateX(0)'; }
+            delete other.dataset.swipeOpen;
+          }
+        });
+      } else {
+        inner.style.transform = 'translateX(0)';
+        delete row.dataset.swipeOpen;
+      }
+      startX = undefined;
+    }, { passive: true });
+  });
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -712,7 +816,7 @@ function resetToHome() {
     setOverrides: {}, repsOverrides: {}, editing: null,
     editingComment: null, editingPriorSession: false,
     exTimer: {
-      active: false, exerciseId: null, setNumber: null,
+      active: false, paused: false, exerciseId: null, setNumber: null,
       remaining: 0, total: 0, startTime: null, interval: null, data: {},
     },
   });
@@ -776,14 +880,12 @@ function deleteSet(exerciseId, setNumber) {
 function startComment(exerciseId) {
   state.editingComment = exerciseId;
   render();
-  requestAnimationFrame(() => {
-    document.getElementById(`comment-input-${exerciseId}`)?.focus();
-  });
 }
 
-function saveComment(exerciseId) {
-  const input = document.getElementById(`comment-input-${exerciseId}`);
-  if (!input) return;
+function saveComment() {
+  const exerciseId = state.editingComment;
+  const input = document.getElementById('comment-sheet-input');
+  if (!input || !exerciseId) return;
   state.session = Store.saveComment(state.session.id, exerciseId, input.value);
   state.editingComment = null;
   render();
@@ -927,6 +1029,7 @@ function finishSession() {
   state.session = Store.completeSession(state.session.id);
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
   state.exTimer.active = false;
+  state.exTimer.paused = false;
   stopTimer();
   state.view = 'complete';
   render();

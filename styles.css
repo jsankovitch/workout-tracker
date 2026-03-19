@@ -724,8 +724,36 @@ html, body {
   opacity: 0.7;
 }
 
+/* ── Set row header with delete ── */
+.set-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.btn-delete-set {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.btn-delete-set:active { opacity: 1; }
+
+/* ── Set actions row (Add Set + Add Comment) ── */
+.set-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .btn-add-set {
-  width: 100%;
+  flex: 1;
   padding: 11px;
   background: transparent;
   color: var(--accent);
@@ -733,8 +761,89 @@ html, body {
   border-radius: 10px;
   font-size: 14px;
   cursor: pointer;
-  margin-top: 6px;
 }
+
+.btn-add-comment {
+  flex: 1;
+  padding: 11px;
+  background: transparent;
+  color: var(--text2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Comment edit area ── */
+.comment-edit {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px;
+  resize: none;
+  font-family: inherit;
+}
+
+.comment-input:focus { outline: none; border-color: var(--accent); }
+
+.comment-edit-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-edit-btns button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.comment-edit-btns button:first-child {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* ── Comment display ── */
+.comment-display {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text2);
+  border-left: 3px solid var(--accent);
+}
+
+/* ── End workout button ── */
+.btn-end-workout {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-end-workout:active { opacity: 0.75; }
 
 /* ── Rest timer bar ── */
 #timer-bar {
@@ -797,3 +906,108 @@ html, body {
 .complete-icon { font-size: 64px; }
 .complete-title { font-size: 26px; font-weight: 700; }
 .complete-sub { font-size: 15px; color: var(--text2); }
+
+/* ── Upload sheet ── */
+.upload-sheet { gap: 12px; }
+
+.upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upload-label {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.upload-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 16px;
+  padding: 12px;
+  width: 100%;
+  font-family: inherit;
+}
+
+.upload-input:focus { outline: none; border-color: var(--accent); }
+
+.upload-textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 12px;
+  width: 100%;
+  font-family: inherit;
+  resize: none;
+}
+
+.upload-textarea:focus { outline: none; border-color: var(--accent); }
+
+.upload-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 15px;
+}
+
+/* Toggle switch */
+.platform-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.platform-toggle input { opacity: 0; width: 0; height: 0; }
+
+.platform-check {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 13px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.platform-check::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.platform-toggle input:checked + .platform-check { background: var(--accent); }
+.platform-toggle input:checked + .platform-check::before { transform: translateX(18px); }
+
+/* ── Detail comment (session detail view) ── */
+.detail-comment {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text2);
+  border-left: 3px solid var(--accent);
+}
+
+/* ── Discard confirmation text ── */
+.modal-confirm-text {
+  font-size: 16px;
+  text-align: center;
+  color: var(--text);
+  padding: 8px 4px;
+  line-height: 1.5;
+}

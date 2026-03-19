@@ -52,6 +52,7 @@ const PROGRAM = {
           metric: 'weight_time',
           targetTime: 60,
           targetSets: [2, 3, 3, 3, 1],
+          noCountdown: true,   // manual time entry — can't watch phone during carry
         },
         {
           id: 'plank_front',
@@ -69,6 +70,7 @@ const PROGRAM = {
           targetTime: 30,
           targetReps: '5–10',
           targetSets: [2, 3, 3, 3, 1],
+          noCountdown: true,   // manual time entry — can't watch phone during hold
         },
       ],
     },

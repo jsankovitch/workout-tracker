@@ -1,6 +1,6 @@
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
-  view: 'home',         // 'home' | 'pre-session' | 'session' | 'complete'
+  view: 'home',              // 'home' | 'pre-session' | 'session' | 'complete'
   workout: null,
   session: null,
   week: 1,
@@ -10,13 +10,25 @@ const state = {
   extraSets: {},
   setOverrides: {},
   repsOverrides: {},
-  exitModal: false,
+  exitModal: null,           // null | 'main' | 'discard'
   detailSession: null,
-  editing: null,        // { exerciseId, setNumber } — set currently being re-edited
+  editing: null,             // { exerciseId, setNumber } — set being re-edited
+  editingComment: null,      // exerciseId whose comment textarea is open
+  editingPriorSession: false,
+  uploadSheet: {
+    open: false,
+    sessionId: null,
+    title: 'Strength Training',
+    description: '',
+    includeComments: true,
+    platforms: { strava: false, trainingpeaks: false },
+  },
   // Rest timer (bottom bar)
   timer: {
     active: false,
     remaining: 0,
+    total: 0,
+    startTime: null,
     interval: null,
     label: '',
   },
@@ -26,6 +38,8 @@ const state = {
     exerciseId: null,
     setNumber: null,
     remaining: 0,
+    total: 0,
+    startTime: null,
     interval: null,
     data: {},
   },
@@ -61,12 +75,16 @@ function beep(freq = 880) {
 // ── Rest timer (bottom bar) ────────────────────────────────────────────────
 function startTimer(seconds, label) {
   if (state.timer.interval) clearInterval(state.timer.interval);
+  const startTime = Date.now();
   state.timer.active = true;
+  state.timer.total = seconds;
   state.timer.remaining = seconds;
+  state.timer.startTime = startTime;
   state.timer.label = label || 'Rest';
   updateTimerBar();
   state.timer.interval = setInterval(() => {
-    state.timer.remaining = Math.max(0, state.timer.remaining - 1);
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    state.timer.remaining = Math.max(0, seconds - elapsed);
     if (state.timer.remaining === 0) {
       clearInterval(state.timer.interval);
       state.timer.interval = null;
@@ -119,11 +137,16 @@ function beginExerciseTimer(exerciseId, setNumber, button) {
   data.time = seconds;
 
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
-  Object.assign(state.exTimer, { active: true, exerciseId, setNumber, remaining: seconds, data });
+  const startTime = Date.now();
+  Object.assign(state.exTimer, {
+    active: true, exerciseId, setNumber,
+    remaining: seconds, total: seconds, startTime, data,
+  });
   render();
 
   state.exTimer.interval = setInterval(() => {
-    state.exTimer.remaining = Math.max(0, state.exTimer.remaining - 1);
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    state.exTimer.remaining = Math.max(0, seconds - elapsed);
     if (state.exTimer.remaining === 0) {
       clearInterval(state.exTimer.interval);
       state.exTimer.interval = null;
@@ -131,7 +154,6 @@ function beginExerciseTimer(exerciseId, setNumber, button) {
       if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
       autoLogTimedSet();
     } else {
-      // Update the countdown in-place to avoid disrupting other inputs
       const el = document.getElementById(`ex-timer-val-${exerciseId}-${setNumber}`);
       if (el) {
         const m = Math.floor(state.exTimer.remaining / 60);
@@ -146,7 +168,9 @@ function autoLogTimedSet() {
   const { exerciseId, setNumber, data } = state.exTimer;
   state.exTimer.active = false;
   state.session = Store.logSet(state.session.id, exerciseId, data);
-  startTimer(state.restDuration, `Rest — set ${setNumber} done`);
+  if (!state.editingPriorSession) {
+    startTimer(state.restDuration, `Rest — set ${setNumber} done`);
+  }
   render();
 }
 
@@ -199,7 +223,7 @@ function getEffectiveSetCount(exercise) {
 function exerciseStatus(exercise) {
   if (state.skipped.has(exercise.id)) return 'skipped';
   const logged = getLoggedSets(exercise.id).length;
-  const effective = getEffectiveSetCount(exercise); // uses effective, so adding a set reverts to grey
+  const effective = getEffectiveSetCount(exercise);
   if (logged >= effective) return 'completed';
   if (logged > 0) return 'in-progress';
   return 'pending';
@@ -219,11 +243,11 @@ function targetDisplay(exercise) {
   return `${sets} sets`;
 }
 
-// ── Render: set inputs with hints ───────────────────────────────────────────
+// ── Render: set inputs ───────────────────────────────────────────────────────
 function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
   const m = exercise.metric;
   const ro = (loggedSet && !isEditing) ? 'readonly' : '';
-  const v = loggedSet || {};  // values to pre-fill (works for both normal display and edit mode)
+  const v = loggedSet || {};
   const targetReps = getTargetReps(exercise);
   const targetTime = getTargetTime(exercise);
   let html = '';
@@ -243,7 +267,7 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
     html += `<div class="input-group">
       <span class="input-label">Reps</span>
       <input type="number" inputmode="numeric" class="set-input" data-field="reps"
-        placeholder="0" value="${v.reps ?? ''}" ${ro}>
+        placeholder="0" value="${v.reps ?? (targetReps != null ? targetReps : '')}" ${ro}>
       <span class="input-hint">target ${targetReps ?? '—'} · last ${lastReps}</span>
     </div>`;
   }
@@ -270,7 +294,7 @@ function renderSetInputs(exercise, loggedSet, prevSet, isEditing = false) {
     <div class="input-group">
       <span class="input-label">Reps</span>
       <input type="number" inputmode="numeric" class="set-input" data-field="reps"
-        placeholder="0" value="${v.reps ?? ''}" ${ro}>
+        placeholder="0" value="${v.reps ?? (targetReps != null ? targetReps : '')}" ${ro}>
       <span class="input-hint">target ${targetReps ?? '—'} · last ${lastReps}</span>
     </div>`;
   }
@@ -285,7 +309,7 @@ function renderHome() {
     ? `<div class="sessions-empty">No sessions yet</div>`
     : sessions.map(s => {
         const workout = PROGRAM.workouts.find(w => w.id === s.workoutId);
-        const d = new Date(s.date + 'T12:00:00'); // noon to avoid timezone edge cases
+        const d = new Date(s.date + 'T12:00:00');
         const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         const exerciseIds = [...new Set(s.sets.map(x => x.exerciseId))];
         const totalExercises = workout?.exercises.length || 0;
@@ -380,18 +404,28 @@ function renderSession() {
   const pct = Math.round((p.done / p.total) * 100);
   const allDone = p.done === p.total;
 
+  let bottomContent = '';
+  if (state.editingPriorSession) {
+    bottomContent = `<div class="finish-btn-row">
+      <button class="btn-primary" onclick="closeSessionEdit()">Save Changes</button>
+    </div>`;
+  } else {
+    bottomContent = `<div class="finish-btn-row">
+      ${allDone ? `<button class="btn-primary" onclick="finishSession()" style="margin-bottom:10px">Finish Workout</button>` : ''}
+      <button class="btn-end-workout" onclick="goHome()">End Workout</button>
+    </div>`;
+  }
+
   return `<div class="screen">
     <div class="header">
-      <button class="btn-icon" onclick="goHome()">End</button>
+      <button class="btn-icon" onclick="${state.editingPriorSession ? 'closeSessionEdit()' : 'goHome()'}">←</button>
       <div class="header-title">${w.name}</div>
       <span style="font-size:13px;color:var(--text2)">${p.done}/${p.total}</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     <div class="content ${state.timer.active ? 'timer-active' : ''}">
       ${w.exercises.map(e => renderExerciseCard(e)).join('')}
-      ${allDone ? `<div class="finish-btn-row">
-        <button class="btn-primary" onclick="finishSession()">Finish Workout</button>
-      </div>` : ''}
+      ${bottomContent}
     </div>
   </div>`;
 }
@@ -405,6 +439,7 @@ function renderExerciseCard(exercise) {
   const setCount = getEffectiveSetCount(exercise);
   const lastSession = Store.lastCompleted(state.workout.id);
   const isTimed = ['weight_time', 'time_only', 'time_reps'].includes(exercise.metric);
+  const existingComment = state.session?.comments?.[exercise.id] || '';
 
   const dotClass = status === 'pending' ? '' : status;
   const cardClass = [
@@ -422,6 +457,8 @@ function renderExerciseCard(exercise) {
       const isLogged = !!ls;
       const isEditing = state.editing?.exerciseId === exercise.id && state.editing?.setNumber === i;
       const isActiveTimer = state.exTimer.active && state.exTimer.exerciseId === exercise.id && state.exTimer.setNumber === i;
+      const isExtra = i > targetSets;
+      const showDelete = (isLogged || isExtra) && !isActiveTimer;
 
       if (isActiveTimer) {
         const m = Math.floor(state.exTimer.remaining / 60);
@@ -439,20 +476,38 @@ function renderExerciseCard(exercise) {
           actionBtn = `<button class="btn-done is-logged" onclick="editSet('${exercise.id}', ${i})">Edit</button>`;
         } else if (isSkipped) {
           actionBtn = `<button class="btn-done" disabled>Done</button>`;
-        } else if (isTimed && !isEditing) {
+        } else if (isTimed && !exercise.noCountdown && !isEditing) {
           actionBtn = `<button class="btn-start-ex" onclick="beginExerciseTimer('${exercise.id}', ${i}, this)">Start</button>`;
         } else {
           actionBtn = `<button class="btn-done" onclick="logSet('${exercise.id}', ${i}, this)">Done</button>`;
         }
 
         setsHtml += `<div class="set-row ${isLogged && !isEditing ? 'is-logged' : ''}" id="setrow-${exercise.id}-${i}">
-          <div class="set-number">Set ${i}</div>
+          <div class="set-row-header">
+            <div class="set-number">Set ${i}</div>
+            ${showDelete ? `<button class="btn-delete-set" onclick="deleteSet('${exercise.id}', ${i})">×</button>` : ''}
+          </div>
           <div class="set-inputs">
             ${renderSetInputs(exercise, ls, prevSet, isEditing)}
             ${actionBtn}
           </div>
         </div>`;
       }
+    }
+
+    // Comment section
+    let commentHtml = '';
+    if (state.editingComment === exercise.id) {
+      commentHtml = `<div class="comment-edit">
+        <textarea class="comment-input" id="comment-input-${exercise.id}" rows="3"
+          placeholder="Add a note about this exercise...">${existingComment}</textarea>
+        <div class="comment-edit-btns">
+          <button onclick="saveComment('${exercise.id}')">Save</button>
+          <button onclick="cancelComment()">Cancel</button>
+        </div>
+      </div>`;
+    } else if (existingComment) {
+      commentHtml = `<div class="comment-display">${existingComment}</div>`;
     }
 
     detail = `<div class="exercise-detail">
@@ -465,8 +520,12 @@ function renderExerciseCard(exercise) {
       </div>
       <div class="sets-list">
         ${setsHtml}
-        ${!isSkipped ? `<button class="btn-add-set" onclick="addSet('${exercise.id}')">+ Add Set</button>` : ''}
       </div>
+      ${commentHtml}
+      ${!isSkipped ? `<div class="set-actions-row">
+        <button class="btn-add-set" onclick="addSet('${exercise.id}')">Add Set</button>
+        <button class="btn-add-comment" onclick="startComment('${exercise.id}')">${existingComment ? 'Edit Comment' : 'Add Comment'}</button>
+      </div>` : ''}
     </div>`;
   }
 
@@ -492,10 +551,10 @@ function renderComplete() {
     <div class="complete-title">Nice work!</div>
     ${duration != null ? `<div class="complete-sub">Finished in ${duration} min</div>` : ''}
     <button class="btn-primary" style="max-width:280px;margin-top:8px" onclick="goHome()">Done</button>
+    <button class="btn-secondary" style="max-width:280px" onclick="openUpload('${session?.id}')">Send to...</button>
   </div>`;
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function renderSessionDetail() {
   const s = state.detailSession;
   const workout = PROGRAM.workouts.find(w => w.id === s.workoutId);
@@ -506,8 +565,9 @@ function renderSessionDetail() {
     const exSets = s.sets
       .filter(set => set.exerciseId === ex.id)
       .sort((a, b) => a.setNumber - b.setNumber);
+    const comment = s.comments?.[ex.id] || '';
 
-    if (exSets.length === 0) return `
+    if (exSets.length === 0 && !comment) return `
       <div class="detail-exercise">
         <div class="detail-ex-name">${ex.name}</div>
         <div class="detail-ex-empty">Not logged</div>
@@ -515,6 +575,7 @@ function renderSessionDetail() {
 
     return `<div class="detail-exercise">
       <div class="detail-ex-name">${ex.name}</div>
+      ${exSets.length === 0 ? `<div class="detail-ex-empty">Not logged</div>` : ''}
       ${exSets.map(set => {
         const parts = [];
         if (set.band != null) parts.push(set.band);
@@ -526,6 +587,7 @@ function renderSessionDetail() {
           <span class="detail-set-values">${parts.join(' · ') || '—'}</span>
         </div>`;
       }).join('')}
+      ${comment ? `<div class="detail-comment">${comment}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -533,25 +595,90 @@ function renderSessionDetail() {
     <div class="header">
       <button class="btn-icon" onclick="closeSessionDetail()">← Back</button>
       <div class="header-title">${workout?.name || ''}</div>
+      <button class="btn-icon" onclick="openUpload('${s.id}')">Upload</button>
     </div>
     <div class="content">
       <div class="detail-date">${dateStr}</div>
+      <button class="btn-secondary" onclick="editPriorSession('${s.id}')" style="margin-bottom:20px;width:auto;padding:10px 20px">Edit Session</button>
       ${exerciseRows}
     </div>
   </div>`;
 }
 
 function renderExitModal() {
+  if (state.exitModal === 'discard') {
+    return `<div class="modal-overlay" onclick="closeExitModal()">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="modal-confirm-text">Are you sure you want to discard this workout? All data will be lost.</div>
+        <button class="modal-btn modal-btn--danger" onclick="discardAndExit()">Discard</button>
+        <button class="modal-btn modal-btn--secondary" onclick="closeExitModal()">Cancel</button>
+      </div>
+    </div>`;
+  }
+  // 'main'
   return `<div class="modal-overlay" onclick="closeExitModal()">
     <div class="modal-sheet" onclick="event.stopPropagation()">
       <div class="modal-title">End workout?</div>
       <button class="modal-btn" onclick="saveAndExit()">Save &amp; Exit</button>
-      <button class="modal-btn modal-btn--danger" onclick="discardAndExit()">Discard Workout</button>
+      <button class="modal-btn modal-btn--danger" onclick="confirmDiscard()">Discard Workout</button>
       <button class="modal-btn modal-btn--secondary" onclick="closeExitModal()">Keep Going</button>
     </div>
   </div>`;
 }
 
+function renderUploadSheet() {
+  const us = state.uploadSheet;
+  return `<div class="modal-overlay" onclick="closeUpload()">
+    <div class="modal-sheet upload-sheet" onclick="event.stopPropagation()">
+      <div class="modal-title">Send to...</div>
+
+      <div class="upload-field">
+        <label class="upload-label">Title</label>
+        <input type="text" class="upload-input" value="${us.title}"
+          oninput="state.uploadSheet.title = this.value">
+      </div>
+
+      <div class="upload-field">
+        <label class="upload-label">Description</label>
+        <textarea class="upload-textarea" rows="3"
+          placeholder="Enter a description for this workout"
+          oninput="state.uploadSheet.description = this.value">${us.description}</textarea>
+      </div>
+
+      <div class="upload-toggle-row">
+        <span class="upload-label">Include comments</span>
+        <label class="platform-toggle">
+          <input type="checkbox" ${us.includeComments ? 'checked' : ''}
+            onchange="state.uploadSheet.includeComments = this.checked">
+          <span class="platform-check"></span>
+        </label>
+      </div>
+
+      <div class="upload-label" style="margin-bottom:4px;margin-top:2px">Platforms</div>
+      <div class="upload-toggle-row">
+        <span>Strava</span>
+        <label class="platform-toggle">
+          <input type="checkbox" ${us.platforms.strava ? 'checked' : ''}
+            onchange="togglePlatform('strava')">
+          <span class="platform-check"></span>
+        </label>
+      </div>
+      <div class="upload-toggle-row">
+        <span>TrainingPeaks</span>
+        <label class="platform-toggle">
+          <input type="checkbox" ${us.platforms.trainingpeaks ? 'checked' : ''}
+            onchange="togglePlatform('trainingpeaks')">
+          <span class="platform-check"></span>
+        </label>
+      </div>
+
+      <button class="modal-btn" onclick="sendToServices()" style="margin-top:4px">Send</button>
+      <button class="modal-btn modal-btn--secondary" onclick="closeUpload()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
 function render() {
   const app = document.getElementById('app');
   switch (state.view) {
@@ -562,13 +689,14 @@ function render() {
     case 'session-detail': app.innerHTML = renderSessionDetail(); break;
   }
   if (state.exitModal) app.insertAdjacentHTML('beforeend', renderExitModal());
+  if (state.uploadSheet.open) app.insertAdjacentHTML('beforeend', renderUploadSheet());
   if (state.timer.active) updateTimerBar();
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 function goHome() {
   if (state.view === 'session') {
-    state.exitModal = true;
+    state.exitModal = 'main';
     render();
     return;
   }
@@ -579,10 +707,14 @@ function resetToHome() {
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
   stopTimer();
   Object.assign(state, {
-    view: 'home', workout: null, session: null, exitModal: false,
+    view: 'home', workout: null, session: null, exitModal: null,
     expandedId: null, skipped: new Set(), extraSets: {},
     setOverrides: {}, repsOverrides: {}, editing: null,
-    exTimer: { active: false, exerciseId: null, setNumber: null, remaining: 0, interval: null, data: {} },
+    editingComment: null, editingPriorSession: false,
+    exTimer: {
+      active: false, exerciseId: null, setNumber: null,
+      remaining: 0, total: 0, startTime: null, interval: null, data: {},
+    },
   });
   render();
 }
@@ -592,14 +724,18 @@ function saveAndExit() {
   resetToHome();
 }
 
+function confirmDiscard() {
+  state.exitModal = 'discard';
+  render();
+}
+
 function discardAndExit() {
-  if (!confirm('Discard this workout? All logged sets will be lost.')) return;
   if (state.session) Store.discardSession(state.session.id);
   resetToHome();
 }
 
 function closeExitModal() {
-  state.exitModal = false;
+  state.exitModal = null;
   render();
 }
 
@@ -627,6 +763,97 @@ function editSet(exerciseId, setNumber) {
   render();
 }
 
+function deleteSet(exerciseId, setNumber) {
+  const exercise = state.workout.exercises.find(e => e.id === exerciseId);
+  const targetSets = getTargetSets(exercise);
+  state.session = Store.removeSet(state.session.id, exerciseId, setNumber);
+  if (setNumber > targetSets) {
+    state.extraSets[exerciseId] = Math.max(0, (state.extraSets[exerciseId] || 0) - 1);
+  }
+  render();
+}
+
+function startComment(exerciseId) {
+  state.editingComment = exerciseId;
+  render();
+  requestAnimationFrame(() => {
+    document.getElementById(`comment-input-${exerciseId}`)?.focus();
+  });
+}
+
+function saveComment(exerciseId) {
+  const input = document.getElementById(`comment-input-${exerciseId}`);
+  if (!input) return;
+  state.session = Store.saveComment(state.session.id, exerciseId, input.value);
+  state.editingComment = null;
+  render();
+}
+
+function cancelComment() {
+  state.editingComment = null;
+  render();
+}
+
+function editPriorSession(sessionId) {
+  const session = Store.getById(sessionId);
+  if (!session) return;
+  const workout = PROGRAM.workouts.find(w => w.id === session.workoutId);
+  if (!workout) return;
+  state.session = session;
+  state.workout = workout;
+  state.week = session.week || 1;
+  state.editingPriorSession = true;
+  state.expandedId = workout.exercises[0]?.id || null;
+  state.skipped = new Set();
+  state.extraSets = {};
+  state.editing = null;
+  state.editingComment = null;
+  state.view = 'session';
+  render();
+}
+
+function closeSessionEdit() {
+  const sessionId = state.session?.id;
+  state.editingPriorSession = false;
+  state.session = null;
+  state.workout = null;
+  state.expandedId = null;
+  state.skipped = new Set();
+  state.extraSets = {};
+  state.editing = null;
+  state.editingComment = null;
+  if (sessionId) {
+    state.detailSession = Store.getById(sessionId);
+    state.view = 'session-detail';
+  } else {
+    state.view = 'home';
+  }
+  render();
+}
+
+function openUpload(sessionId) {
+  state.uploadSheet.open = true;
+  state.uploadSheet.sessionId = sessionId;
+  state.uploadSheet.title = 'Strength Training';
+  state.uploadSheet.description = '';
+  render();
+}
+
+function closeUpload() {
+  state.uploadSheet.open = false;
+  render();
+}
+
+function togglePlatform(platform) {
+  state.uploadSheet.platforms[platform] = !state.uploadSheet.platforms[platform];
+  render();
+}
+
+function sendToServices() {
+  alert('Platform integration coming soon.');
+  closeUpload();
+}
+
 function exportSessions() {
   alert('Export coming soon.');
 }
@@ -640,7 +867,7 @@ function selectWorkout(workoutId) {
 
 function startSession() {
   ensureAudio();
-  state.session = Store.createSession(state.workout.id, state.restDuration);
+  state.session = Store.createSession(state.workout.id, state.restDuration, state.week);
   state.expandedId = state.workout.exercises[0].id;
   state.view = 'session';
   render();
@@ -690,7 +917,9 @@ function logSet(exerciseId, setNumber, button) {
 
   state.editing = null;
   state.session = Store.logSet(state.session.id, exerciseId, data);
-  startTimer(state.restDuration, `Rest — set ${setNumber} done`);
+  if (!state.editingPriorSession) {
+    startTimer(state.restDuration, `Rest — set ${setNumber} done`);
+  }
   render();
 }
 

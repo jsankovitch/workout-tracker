@@ -17,15 +17,17 @@ const Store = (() => {
     });
   }
 
-  function createSession(workoutId, restDuration) {
+  function createSession(workoutId, restDuration, week) {
     const session = {
       id: uuid(),
       workoutId,
+      week: week || 1,
       date: new Date().toISOString().split('T')[0],
       startedAt: new Date().toISOString(),
       completedAt: null,
       restDuration,
       sets: [],
+      comments: {},
       // sets schema: { exerciseId, setNumber, weight, reps, time, band, completedAt }
     };
     const sessions = all();
@@ -90,6 +92,20 @@ const Store = (() => {
     return session;
   }
 
+  function saveComment(sessionId, exerciseId, text) {
+    const sessions = all();
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return null;
+    if (!session.comments) session.comments = {};
+    if (text.trim()) {
+      session.comments[exerciseId] = text.trim();
+    } else {
+      delete session.comments[exerciseId];
+    }
+    save(sessions);
+    return sessions.find(s => s.id === sessionId);
+  }
+
   function deleteSession(sessionId) {
     save(all().filter(s => s.id !== sessionId));
   }
@@ -108,5 +124,9 @@ const Store = (() => {
     return JSON.stringify(allCompleted(), null, 2);
   }
 
-  return { createSession, logSet, removeSet, completeSession, getById, lastCompleted, completedCount, deleteSession, discardSession, allCompleted, exportJSON };
+  return {
+    createSession, logSet, removeSet, completeSession, getById,
+    lastCompleted, completedCount, saveComment, deleteSession,
+    discardSession, allCompleted, exportJSON,
+  };
 })();

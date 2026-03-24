@@ -378,7 +378,7 @@ function renderHome() {
       <div class="section-label">Prior Sessions</div>
       <div class="sessions-list">${sessionList}</div>
 
-      <div class="app-version">v9</div>
+      <div class="app-version">v10</div>
 
       <div class="connections-section">
         <div class="section-label">Connections</div>
@@ -1066,8 +1066,12 @@ async function sendToServices() {
 
   state.uploadSheet.uploading = false;
 
-  if (result.ok) {
+  if (result.ok === true) {
     closeUpload();
+  } else if (result.ok === 'uncertain') {
+    // Strava processed the request but returned an ambiguous response — activity was likely created
+    closeUpload();
+    alert('Strava accepted the upload but returned an unclear response. Check Strava to confirm the activity appeared, then you\'re done.');
   } else {
     const lines = [`Error: ${result.error}`];
     if (result.status) lines.push(`HTTP status: ${result.status}`);

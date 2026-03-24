@@ -128,11 +128,14 @@ const Strava = (() => {
 
     const desc = description.trim() || buildDescription(session, includeComments);
 
+    // Strava expects local time without milliseconds or timezone marker
+    const startLocal = session.startedAt.replace(/\.\d+Z?$/, '').replace('Z', '');
+
     const body = {
       name: title || 'Strength Training',
       type: 'WeightTraining',
       sport_type: 'WeightTraining',
-      start_date_local: session.startedAt,
+      start_date_local: startLocal,
       elapsed_time: elapsed,
       trainer: 1,
     };
@@ -149,6 +152,9 @@ const Strava = (() => {
       });
       const data = await res.json();
       if (res.ok) return { ok: true, activityId: data.id };
+      // Strava sometimes returns 404 "Record Not Found" even when the activity was created —
+      // this is a known API inconsistency. Flag it as uncertain rather than a hard failure.
+      if (res.status === 404) return { ok: 'uncertain', status: res.status, detail: JSON.stringify(data, null, 2) };
       return {
         ok: false,
         error: data.message || data.error || `HTTP ${res.status}`,

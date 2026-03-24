@@ -334,12 +334,9 @@ function renderHome() {
         const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         const exerciseIds = [...new Set(s.sets.map(x => x.exerciseId))];
         const totalExercises = workout?.exercises.length || 0;
-        return `<div class="session-item">
-          <div class="session-info" onclick="viewSession('${s.id}')">
-            <div class="session-date">${dateStr}</div>
-            <div class="session-workout">${workout?.name || s.workoutId} · ${exerciseIds.length}/${totalExercises} exercises</div>
-          </div>
-          <button class="btn-delete-session" onclick="deleteSession('${s.id}')">Delete</button>
+        return `<div class="session-item" onclick="viewSession('${s.id}')">
+          <div class="session-date">${dateStr}</div>
+          <div class="session-workout">${workout?.name || s.workoutId} · ${exerciseIds.length}/${totalExercises} exercises</div>
         </div>`;
       }).join('');
 
@@ -356,10 +353,7 @@ function renderHome() {
           </button>`).join('')}
       </div>
 
-      <div class="sessions-header">
-        <span class="section-label" style="margin:0">Prior Sessions</span>
-        <button class="btn-export" onclick="exportSessions()">Export</button>
-      </div>
+      <div class="section-label">Prior Sessions</div>
       <div class="sessions-list">${sessionList}</div>
 
       <div class="connections-section">
@@ -1022,7 +1016,6 @@ function closeUpload() {
 
 function togglePlatform(platform) {
   state.uploadSheet.platforms[platform] = !state.uploadSheet.platforms[platform];
-  render();
 }
 
 async function sendToServices() {

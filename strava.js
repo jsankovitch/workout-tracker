@@ -130,6 +130,7 @@ const Strava = (() => {
 
     const body = {
       name: title || 'Strength Training',
+      type: 'WeightTraining',
       sport_type: 'WeightTraining',
       start_date_local: session.startedAt,
       elapsed_time: elapsed,
@@ -148,7 +149,7 @@ const Strava = (() => {
       });
       const data = await res.json();
       if (res.ok) return { ok: true, activityId: data.id };
-      return { ok: false, error: data.message || `HTTP ${res.status}` };
+      return { ok: false, error: data.message || data.error || `HTTP ${res.status}` };
     } catch (e) {
       return { ok: false, error: 'Network error — check your connection.' };
     }

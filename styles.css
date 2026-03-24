@@ -148,6 +148,89 @@ html, body {
   font-weight: 400;
 }
 
+/* ── Connections section ── */
+.connections-section {
+  margin-top: 28px;
+}
+
+.connection-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.connection-btn-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.connection-btn-action {
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.connection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.connection-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.connection-status {
+  font-size: 13px;
+  color: var(--success);
+}
+
+.connection-ok {
+  color: var(--success);
+  font-size: 13px;
+}
+
+.connection-needed {
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.btn-connection-action {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.connect-help {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.connect-help strong {
+  color: var(--text);
+}
+
 /* ── Sessions list ── */
 .sessions-header {
   display: flex;

@@ -18,12 +18,14 @@ const state = {
   editingPriorSession: false,
   uploadSheet: {
     open: false,
+    uploading: false,
     sessionId: null,
     title: 'Strength Training',
     description: '',
     includeComments: true,
     platforms: { strava: false, trainingpeaks: false },
   },
+  stravaConnectSheet: false,
   // Rest timer (bottom bar)
   timer: {
     active: false,
@@ -359,6 +361,23 @@ function renderHome() {
         <button class="btn-export" onclick="exportSessions()">Export</button>
       </div>
       <div class="sessions-list">${sessionList}</div>
+
+      <div class="connections-section">
+        <div class="section-label">Connections</div>
+        ${Strava.isConnected()
+          ? `<div class="connection-item">
+               <div class="connection-info">
+                 <span class="connection-name">Strava</span>
+                 <span class="connection-status">${Strava.getAthleteDisplay()}</span>
+               </div>
+               <button class="btn-connection-action" onclick="disconnectStrava()">Disconnect</button>
+             </div>`
+          : `<button class="connection-btn" onclick="openStravaConnect()">
+               <span class="connection-btn-name">Strava</span>
+               <span class="connection-btn-action">Connect →</span>
+             </button>`
+        }
+      </div>
     </div>
   </div>`;
 }
@@ -695,24 +714,44 @@ function renderUploadSheet() {
 
       <div class="upload-label" style="margin-bottom:4px;margin-top:2px">Platforms</div>
       <div class="upload-toggle-row">
-        <span>Strava</span>
+        <span>Strava${Strava.isConnected() ? ` <span class="connection-ok">✓</span>` : ` <span class="connection-needed">(not connected)</span>`}</span>
         <label class="platform-toggle">
           <input type="checkbox" ${us.platforms.strava ? 'checked' : ''}
-            onchange="togglePlatform('strava')">
-          <span class="platform-check"></span>
-        </label>
-      </div>
-      <div class="upload-toggle-row">
-        <span>TrainingPeaks</span>
-        <label class="platform-toggle">
-          <input type="checkbox" ${us.platforms.trainingpeaks ? 'checked' : ''}
-            onchange="togglePlatform('trainingpeaks')">
+            onchange="togglePlatform('strava')" ${!Strava.isConnected() ? 'disabled' : ''}>
           <span class="platform-check"></span>
         </label>
       </div>
 
-      <button class="modal-btn" onclick="sendToServices()" style="margin-top:4px">Send</button>
-      <button class="modal-btn modal-btn--secondary" onclick="closeUpload()">Cancel</button>
+      ${us.uploading
+        ? `<button class="modal-btn" disabled style="margin-top:4px">Uploading...</button>`
+        : `<button class="modal-btn" onclick="sendToServices()" style="margin-top:4px">Send</button>`
+      }
+      <button class="modal-btn modal-btn--secondary" onclick="closeUpload()" ${us.uploading ? 'disabled' : ''}>Cancel</button>
+    </div>
+  </div>`;
+}
+
+function renderStravaConnectSheet() {
+  const cfg = Strava.getConfig();
+  return `<div class="modal-overlay" onclick="closeStravaConnect()">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-title">Connect Strava</div>
+      <div class="upload-field">
+        <label class="upload-label">Client ID</label>
+        <input type="text" inputmode="numeric" class="upload-input" id="strava-client-id"
+          placeholder="12345" value="${cfg.clientId || ''}">
+      </div>
+      <div class="upload-field">
+        <label class="upload-label">Client Secret</label>
+        <input type="text" class="upload-input" id="strava-client-secret"
+          placeholder="abc123..." value="${cfg.clientSecret || ''}">
+      </div>
+      <p class="connect-help">
+        Get these from <strong>strava.com/settings/api</strong>.<br>
+        Set the Authorization Callback Domain to <strong>jsankovitch.github.io</strong>.
+      </p>
+      <button class="modal-btn" onclick="initiateStravaAuth()">Connect →</button>
+      <button class="modal-btn modal-btn--secondary" onclick="closeStravaConnect()">Cancel</button>
     </div>
   </div>`;
 }
@@ -734,6 +773,7 @@ function render() {
     requestAnimationFrame(() => document.getElementById('comment-sheet-input')?.focus());
   }
   if (state.uploadSheet.open) app.insertAdjacentHTML('beforeend', renderUploadSheet());
+  if (state.stravaConnectSheet) app.insertAdjacentHTML('beforeend', renderStravaConnectSheet());
   if (state.timer.active) updateTimerBar();
   attachSwipeListeners();
 }
@@ -985,9 +1025,53 @@ function togglePlatform(platform) {
   render();
 }
 
-function sendToServices() {
-  alert('Platform integration coming soon.');
-  closeUpload();
+async function sendToServices() {
+  const us = state.uploadSheet;
+  if (!us.platforms.strava) { closeUpload(); return; }
+
+  const session = Store.getById(us.sessionId);
+  if (!session) { closeUpload(); return; }
+
+  state.uploadSheet.uploading = true;
+  render();
+
+  const result = await Strava.uploadActivity(
+    session, us.title, us.description, us.includeComments
+  );
+
+  state.uploadSheet.uploading = false;
+
+  if (result.ok) {
+    closeUpload();
+  } else {
+    alert(`Strava upload failed: ${result.error}`);
+    render();
+  }
+}
+
+function openStravaConnect() {
+  state.stravaConnectSheet = true;
+  render();
+}
+
+function closeStravaConnect() {
+  state.stravaConnectSheet = false;
+  render();
+}
+
+function initiateStravaAuth() {
+  const clientId = document.getElementById('strava-client-id')?.value.trim();
+  const clientSecret = document.getElementById('strava-client-secret')?.value.trim();
+  if (!clientId || !clientSecret) {
+    alert('Please enter both Client ID and Client Secret.');
+    return;
+  }
+  Strava.initiateAuth(clientId, clientSecret);  // redirects away
+}
+
+function disconnectStrava() {
+  Strava.disconnect();
+  render();
 }
 
 function exportSessions() {
@@ -1071,4 +1155,13 @@ function finishSession() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-render();
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  if (code || error) {
+    history.replaceState({}, '', window.location.pathname);
+    if (code) await Strava.handleCallback(code);
+  }
+  render();
+})();

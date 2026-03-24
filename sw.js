@@ -1,5 +1,5 @@
-const CACHE = 'gym-v4';
-const ASSETS = ['/', '/index.html', '/styles.css', '/program.js', '/store.js', '/app.js'];
+const CACHE = 'gym-v5';
+const ASSETS = ['/', '/index.html', '/styles.css', '/program.js', '/store.js', '/strava.js', '/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

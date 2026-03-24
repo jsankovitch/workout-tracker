@@ -148,6 +148,13 @@ html, body {
   font-weight: 400;
 }
 
+.app-version {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 28px;
+}
+
 /* ── Connections section ── */
 .connections-section {
   margin-top: 28px;

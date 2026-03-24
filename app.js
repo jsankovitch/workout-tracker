@@ -378,6 +378,8 @@ function renderHome() {
       <div class="section-label">Prior Sessions</div>
       <div class="sessions-list">${sessionList}</div>
 
+      <div class="app-version">v9</div>
+
       <div class="connections-section">
         <div class="section-label">Connections</div>
         ${Strava.isConnected()

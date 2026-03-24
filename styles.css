@@ -929,6 +929,28 @@ html, body {
   margin-top: 24px;
 }
 
+/* ── Session detail bottom buttons ── */
+.detail-bottom-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.btn-danger {
+  width: 100%;
+  padding: 17px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:active { opacity: 0.8; }
+
 /* ── Complete screen ── */
 .complete-screen {
   display: flex;

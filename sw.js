@@ -1,4 +1,4 @@
-const CACHE = 'gym-v3';
+const CACHE = 'gym-v4';
 const ASSETS = ['/', '/index.html', '/styles.css', '/program.js', '/store.js', '/app.js'];
 
 self.addEventListener('install', e => {

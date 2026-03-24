@@ -11,6 +11,7 @@ const state = {
   setOverrides: {},
   repsOverrides: {},
   exitModal: null,           // null | 'main' | 'discard'
+  deleteModal: null,         // null | sessionId — confirmation before deleting a session
   detailSession: null,
   editing: null,             // { exerciseId, setNumber } — set being re-edited
   editingComment: null,      // exerciseId whose comment sheet is open
@@ -430,7 +431,7 @@ function renderSession() {
   } else {
     bottomContent = `<div class="finish-btn-row">
       ${allDone ? `<button class="btn-primary" onclick="finishSession()" style="margin-bottom:10px">Finish Workout</button>` : ''}
-      <button class="btn-end-workout" onclick="goHome()">End Workout</button>
+      <button class="${allDone ? 'btn-primary' : 'btn-end-workout'}" onclick="goHome()">End Workout</button>
     </div>`;
   }
 
@@ -606,12 +607,15 @@ function renderSessionDetail() {
     <div class="header">
       <button class="btn-icon" onclick="closeSessionDetail()">← Back</button>
       <div class="header-title">${workout?.name || ''}</div>
-      <button class="btn-icon" onclick="openUpload('${s.id}')">Upload</button>
+      <button class="btn-icon" onclick="editPriorSession('${s.id}')">Edit</button>
     </div>
     <div class="content">
       <div class="detail-date">${dateStr}</div>
-      <button class="btn-secondary" onclick="editPriorSession('${s.id}')" style="margin-bottom:20px;width:auto;padding:10px 20px">Edit Session</button>
       ${exerciseRows}
+      <div class="detail-bottom-btns">
+        <button class="btn-primary" onclick="openUpload('${s.id}')">Upload</button>
+        <button class="btn-danger" onclick="confirmDeleteSession('${s.id}')">Delete</button>
+      </div>
     </div>
   </div>`;
 }
@@ -632,6 +636,16 @@ function renderExitModal() {
       <button class="modal-btn" onclick="saveAndExit()">Save &amp; Exit</button>
       <button class="modal-btn modal-btn--danger" onclick="confirmDiscard()">Discard Workout</button>
       <button class="modal-btn modal-btn--secondary" onclick="closeExitModal()">Keep Going</button>
+    </div>
+  </div>`;
+}
+
+function renderDeleteModal() {
+  return `<div class="modal-overlay" onclick="cancelDeleteSession()">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-confirm-text">Delete this session? All logged data will be permanently removed.</div>
+      <button class="modal-btn modal-btn--danger" onclick="executeDeleteSession()">Delete</button>
+      <button class="modal-btn modal-btn--secondary" onclick="cancelDeleteSession()">Cancel</button>
     </div>
   </div>`;
 }
@@ -714,6 +728,7 @@ function render() {
     case 'session-detail': app.innerHTML = renderSessionDetail(); break;
   }
   if (state.exitModal) app.insertAdjacentHTML('beforeend', renderExitModal());
+  if (state.deleteModal) app.insertAdjacentHTML('beforeend', renderDeleteModal());
   if (state.editingComment) {
     app.insertAdjacentHTML('beforeend', renderCommentSheet());
     requestAnimationFrame(() => document.getElementById('comment-sheet-input')?.focus());
@@ -811,7 +826,7 @@ function resetToHome() {
   if (state.exTimer.interval) clearInterval(state.exTimer.interval);
   stopTimer();
   Object.assign(state, {
-    view: 'home', workout: null, session: null, exitModal: null,
+    view: 'home', workout: null, session: null, exitModal: null, deleteModal: null,
     expandedId: null, skipped: new Set(), extraSets: {},
     setOverrides: {}, repsOverrides: {}, editing: null,
     editingComment: null, editingPriorSession: false,
@@ -845,6 +860,25 @@ function closeExitModal() {
 
 function deleteSession(sessionId) {
   if (!confirm('Delete this session?')) return;
+  Store.deleteSession(sessionId);
+  render();
+}
+
+function confirmDeleteSession(sessionId) {
+  state.deleteModal = sessionId;
+  render();
+}
+
+function cancelDeleteSession() {
+  state.deleteModal = null;
+  render();
+}
+
+function executeDeleteSession() {
+  const sessionId = state.deleteModal;
+  state.deleteModal = null;
+  state.detailSession = null;
+  state.view = 'home';
   Store.deleteSession(sessionId);
   render();
 }
@@ -1017,9 +1051,10 @@ function logSet(exerciseId, setNumber, button) {
 
   if (!hasAny) { inputs[0]?.focus(); return; }
 
+  const wasEditing = !!state.editing;
   state.editing = null;
   state.session = Store.logSet(state.session.id, exerciseId, data);
-  if (!state.editingPriorSession) {
+  if (!state.editingPriorSession && !wasEditing) {
     startTimer(state.restDuration, `Rest — set ${setNumber} done`);
   }
   render();

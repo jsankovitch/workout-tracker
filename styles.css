@@ -1150,6 +1150,12 @@ html, body {
   gap: 8px;
 }
 
+.upload-error-warning {
+  font-size: 13px;
+  color: var(--warning);
+  line-height: 1.4;
+}
+
 .upload-error-text {
   font-family: 'SF Mono', 'Menlo', monospace;
   font-size: 12px;

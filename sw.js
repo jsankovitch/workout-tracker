@@ -1,4 +1,4 @@
-const CACHE = 'gym-v8';
+const CACHE = 'gym-v9';
 const ASSETS = ['/', '/index.html', '/styles.css', '/program.js', '/store.js', '/strava.js', '/app.js'];
 
 self.addEventListener('install', e => {
@@ -14,6 +14,8 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Only handle same-origin requests — let external API calls (Strava, etc.) go straight to network
+  if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );

@@ -739,6 +739,7 @@ function renderUploadSheet() {
       </div>
 
       ${us.error ? `<div class="upload-error">
+        <div class="upload-error-warning">⚠ Check Strava before retrying — the workout may have uploaded despite this error.</div>
         <pre class="upload-error-text" id="upload-error-text">${us.error}</pre>
         <button class="btn-copy-error" onclick="copyUploadError()">Copy Error</button>
       </div>` : ''}

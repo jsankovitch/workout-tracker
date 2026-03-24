@@ -94,6 +94,9 @@ function startTimer(seconds, label) {
       state.timer.interval = null;
       beep();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      updateTimerBar();
+      advanceToNextExercise();
+      return;
     }
     updateTimerBar();
   }, 1000);
@@ -105,6 +108,25 @@ function stopTimer() {
   state.timer.remaining = 0;
   document.getElementById('timer-bar')?.remove();
   document.querySelector('.content')?.classList.remove('timer-active');
+}
+
+function advanceToNextExercise() {
+  if (state.view !== 'session' || !state.workout || state.editingPriorSession) return;
+  const next = state.workout.exercises.find(e => {
+    const s = exerciseStatus(e);
+    return s === 'pending' || s === 'in-progress';
+  });
+  if (!next || state.expandedId === next.id) return;
+  state.expandedId = next.id;
+  render();
+  requestAnimationFrame(() => {
+    document.getElementById(`card-${next.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
+function skipRest() {
+  stopTimer();
+  advanceToNextExercise();
 }
 
 function updateTimerBar() {
@@ -121,7 +143,7 @@ function updateTimerBar() {
   bar.innerHTML = `
     <span class="timer-label">${state.timer.label}</span>
     <span class="timer-value ${done ? 'is-done' : ''}">${done ? 'Go!' : `${m}:${s}`}</span>
-    <button class="btn-timer-skip" onclick="stopTimer()">Dismiss</button>
+    <button class="btn-timer-skip" onclick="skipRest()">${done ? 'Dismiss' : 'Skip Rest'}</button>
   `;
 }
 

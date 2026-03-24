@@ -149,9 +149,14 @@ const Strava = (() => {
       });
       const data = await res.json();
       if (res.ok) return { ok: true, activityId: data.id };
-      return { ok: false, error: data.message || data.error || `HTTP ${res.status}` };
+      return {
+        ok: false,
+        error: data.message || data.error || `HTTP ${res.status}`,
+        status: res.status,
+        detail: JSON.stringify(data, null, 2),
+      };
     } catch (e) {
-      return { ok: false, error: 'Network error — check your connection.' };
+      return { ok: false, error: `Network error: ${e.message}` };
     }
   }
 

@@ -19,6 +19,7 @@ const state = {
   uploadSheet: {
     open: false,
     uploading: false,
+    error: null,
     sessionId: null,
     title: 'Strength Training',
     description: '',
@@ -95,7 +96,6 @@ function startTimer(seconds, label) {
       beep();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       updateTimerBar();
-      advanceToNextExercise();
       return;
     }
     updateTimerBar();
@@ -738,6 +738,11 @@ function renderUploadSheet() {
         </label>
       </div>
 
+      ${us.error ? `<div class="upload-error">
+        <pre class="upload-error-text" id="upload-error-text">${us.error}</pre>
+        <button class="btn-copy-error" onclick="copyUploadError()">Copy Error</button>
+      </div>` : ''}
+
       ${us.uploading
         ? `<button class="modal-btn" disabled style="margin-top:4px">Uploading...</button>`
         : `<button class="modal-btn" onclick="sendToServices()" style="margin-top:4px">Send</button>`
@@ -1028,6 +1033,7 @@ function openUpload(sessionId) {
   state.uploadSheet.sessionId = sessionId;
   state.uploadSheet.title = 'Strength Training';
   state.uploadSheet.description = '';
+  state.uploadSheet.error = null;
   render();
 }
 
@@ -1048,6 +1054,7 @@ async function sendToServices() {
   if (!session) { closeUpload(); return; }
 
   state.uploadSheet.uploading = true;
+  state.uploadSheet.error = null;
   render();
 
   const result = await Strava.uploadActivity(
@@ -1059,9 +1066,28 @@ async function sendToServices() {
   if (result.ok) {
     closeUpload();
   } else {
-    alert(`Strava upload failed: ${result.error}`);
+    const lines = [`Error: ${result.error}`];
+    if (result.status) lines.push(`HTTP status: ${result.status}`);
+    if (result.detail) lines.push(`Response body:\n${result.detail}`);
+    lines.push(`Session ID: ${us.sessionId}`);
+    lines.push(`Started: ${session.startedAt}`);
+    state.uploadSheet.error = lines.join('\n');
     render();
   }
+}
+
+function copyUploadError() {
+  if (!state.uploadSheet.error) return;
+  navigator.clipboard.writeText(state.uploadSheet.error).catch(() => {
+    // fallback: select the text element
+    const el = document.getElementById('upload-error-text');
+    if (el) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+    }
+  });
 }
 
 function openStravaConnect() {

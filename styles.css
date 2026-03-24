@@ -1139,6 +1139,38 @@ html, body {
 .platform-toggle input:checked + .platform-check { background: var(--accent); }
 .platform-toggle input:checked + .platform-check::before { transform: translateX(18px); }
 
+/* ── Upload error block ── */
+.upload-error {
+  background: var(--surface2);
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-error-text {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 12px;
+  color: var(--text2);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  user-select: text;
+}
+
+.btn-copy-error {
+  align-self: flex-start;
+  padding: 7px 14px;
+  background: var(--surface);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 /* ── Detail comment (session detail view) ── */
 .detail-comment {
   margin-top: 6px;
